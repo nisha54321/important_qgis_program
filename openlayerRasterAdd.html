@@ -1,0 +1,37 @@
+{% extends "index2.html" %}
+{% block content %}
+
+<h3>Output : Raster Image</h3>
+
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+      
+      var wms = new ol.layer.Tile({
+
+              source: new ol.source.TileWMS({
+                //extent: [-13884991, 2870341, -7455066, 6338219],
+
+                url: 'http://localhost:8080/geoserver/bisag/wms',
+                // params: {'LAYERS': 'bisag:os1_4326', 'TILED': true},
+                params: {'LAYERS': 'bisag:proceLayer', 'TILED': true},
+
+                serverType: 'geoserver'
+              })
+      });
+
+    var map = new ol.Map({
+        layers: [new ol.layer.Tile({
+            source: new ol.source.OSM()
+          }),wms],
+        target: 'map',
+        view:new ol.View({
+          // projection: 'EPSG:3857',
+          //extent = [{{extend1}}],
+          center: ol.proj.fromLonLat([76.69883625853552,28.527033110746807]),
+          zoom: 8
+        })
+      });
+      
+    </script>
+
+{% endblock %}
