@@ -11,8 +11,12 @@ import numpy as np
 import sys
 from shapely.geometry import LineString
 import os
+cwd = '/home/bisag/.local/share/QGIS/QGIS3/profiles/default/python/plugins/multisource_onedestination'
 
-cwd = os.getcwd()
+op1 = cwd+"/path.txt"
+if os.path.exists(op1):
+    os.remove(op1)
+    
 input = cwd+'/recassify.tif'
 
 raster_one = rasterio.open(input)
@@ -105,104 +109,3 @@ with open(cwd+"/path_points.txt", 'w') as f:
     for point in points2:
         f.write(str(point)+ os.linesep)
 
-index_file = open(cwd+"/index.html", "w")
-index_file.truncate()
-index_file.close()
-
-with open(cwd+"/index.html", 'w') as f:
-    mycarto_cords= ""
-    for point in points1:
-        mycarto_cords += str(point).replace("(","").replace(")",", 0,")
-    #print("html::")
-    #print(mycarto_cords)
-    str1 = '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
-    <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
-    />
-    <title>Index</title>
-    <script src="/Build/Cesium/Cesium.js"></script>
-    <link href="/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <style>
-        html,
-        body,
-        #cesiumContainer {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        }
-    </style>
-    <style>
-        .cesium-viewer-animationContainer{
-        display: none;
-        }
-        .cesium-viewer-bottom{
-        display: none;
-        }
-    </style>
-
-    </head>
-    <body>
-        <div id="cesiumContainer"></div>
-    <script>
-
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmOTQ1OWNhZS00NDY3LTQ3ZGItYTY5Ni03OTliOTgxMWVjYzIiLCJpZCI6NDAzMjIsImlhdCI6MTYwODYyNzkxNX0.yVW1tez7XbulKavYnEIswlgREug_3JxTj1ZXOuwKm2A";
-
-
-var viewer = new Cesium.Viewer("cesiumContainer", {
-  infoBox: false,
-  selectionIndicator: false,
-  shadows: true,
-  shouldAnimate: true,
-});
-
-
-    
-    var czml = [
-    {
-        id: "document",
-        name: "CZML Geometries: Polyline",
-        version: "1.0",
-    },
-    {
-        id: "redLine",
-        name: "Red line clamped to terain",
-        polyline: {
-        positions: {
-            cartographicDegrees: ['''+mycarto_cords[:-1]+'''],
-        },
-        material: {
-            solidColor: {
-            color: {
-                rgba: [255, 0, 0, 255],
-            },
-            },
-        },
-        width: 5,
-        clampToGround: true,
-        show: true,
-        zIndex: 0
-
-        },
-    },
-    ];
-
-
-    var dataSourcePromise = Cesium.CzmlDataSource.load(czml);
-    viewer.dataSources.add(dataSourcePromise);
-    viewer.zoomTo(dataSourcePromise);                        
-    </script>
-    </body>
-    </html>
-
-    '''
-
-    f.write(str1)

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-#Converts raster data between different formats.
-
-
+#####low to high resolution of raster image
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
@@ -9,7 +7,7 @@ from qgis.PyQt.QtWidgets import QAction
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
-from .image_translate_dialog import ImageTranslateDialog
+from .pan_sharp_dialog import PanSharpDialog
 import os.path
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QMenu, QAction,QFileDialog
@@ -19,11 +17,12 @@ from qgis.core import (
     QgsPathResolver
 )
 
-class ImageTranslate:
+class PanSharp:
     """QGIS Plugin Implementation."""
     filename = ''
+    filename1 = ''
     def __init__(self, iface):
-       
+        
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -33,7 +32,7 @@ class ImageTranslate:
         locale_path = os.path.join(
             self.plugin_dir,
             'i18n',
-            'ImageTranslate_{}.qm'.format(locale))
+            'PanSharp_{}.qm'.format(locale))
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -42,7 +41,7 @@ class ImageTranslate:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&ImageTranslate')
+        self.menu = self.tr(u'&Pan Sharp')
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -52,7 +51,7 @@ class ImageTranslate:
     def tr(self, message):
         
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('ImageTranslate', message)
+        return QCoreApplication.translate('PanSharp', message)
 
 
     def add_action(
@@ -66,7 +65,7 @@ class ImageTranslate:
         status_tip=None,
         whats_this=None,
         parent=None):
-       
+      
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -105,14 +104,14 @@ class ImageTranslate:
             actions = self.iface.mainWindow().menuBar().actions()
             lastAction = actions[-1]
             self.iface.mainWindow().menuBar().insertMenu( lastAction, self.menu )
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"PanSharp", self.iface.mainWindow())
+            self.action.setObjectName( 'PanSharp' )
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
 
         else:
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"PanSharp", self.iface.mainWindow())
+            self.action.setObjectName( 'PanSharp' )
 
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
@@ -125,58 +124,69 @@ class ImageTranslate:
         #print("reload:\n",self.menu.actions(),'\n',menuBar)
         for action in self.menu.actions():
             #print(" inside",": ",action.objectName())
-            if action.objectName() == "ImageTranslate":
+            if action.objectName() == "PanSharp":
                 print("remove :::","",action.objectName())
                 #icon.setEnabled(False)
                 self.menu.removeAction(action)
 
 
+
     def run(self):
-        
         if self.first_start == True:
             self.first_start = False
-            self.dlg = ImageTranslateDialog()
+            self.dlg = PanSharpDialog()
 
         plugin_dir = os.path.dirname(__file__)
         self.dlg.label_logo.setPixmap(QtGui.QPixmap(plugin_dir+'/'+'bisag_n.png').scaledToWidth(120))
 
         def select():
-            self.filename, _filter = QFileDialog.getOpenFileName(self.dlg, "Select   input file ","", '*.tif *.shp *.jp2')
-            self.dlg.label_title_selectfilename.setWordWrap(True)
-            self.dlg.label_title_selectfilename.setText(self.filename)
+            self.filename, _filter = QFileDialog.getOpenFileName(self.dlg, "Select   input file ","", '*.tif *.shp *jp2')
+            self.dlg.label_title_sd.setWordWrap(True)
+            self.dlg.label_title_sd.setText(self.filename)
 
-        op = plugin_dir+'/Image_translate.tif'
+        def select1():
+            self.filename1, _filter = QFileDialog.getOpenFileName(self.dlg, "Select   input file ","", '*.tif *.shp *jp2')
+            self.dlg.label_title_pd.setWordWrap(True)
+            self.dlg.label_title_pd.setText(self.filename1)
 
-        def translate():
-            print(self.filename)
-            processing.run("gdal:translate", 
-                                {'INPUT':self.filename,
-                                'TARGET_CRS':None,
-                                'NODATA':None,
-                                'COPY_SUBDATASETS':False,
-                                'OPTIONS':'',
-                                'EXTRA':'',
-                                'DATA_TYPE':0,
-                                'OUTPUT':op})
+        self.dlg.pushButton_s.clicked.connect(select)
+        self.dlg.pushButton_p.clicked.connect(select1)
 
-            rlayer = QgsRasterLayer(op, "Image translate")
+        resampling_metod = [" Nearest neighbour","Bilinear","Cubic","Cubic spline","Lanczos windowed sinc","Average"]
+        alg_method  = self.dlg.comboBox.addItems(resampling_metod)
+
+        def algo():
+            datatype = self.dlg.comboBox.currentIndex()
+
+            print("algo method",datatype)
+
+            processing.run("gdal:pansharp",
+                {'SPECTRAL':self.filename,
+                'PANCHROMATIC':self.filename1,
+                'RESAMPLING':datatype,
+                'OPTIONS':'',
+                'EXTRA':'',
+                'OUTPUT':plugin_dir+'/pansharp.tif'})
+
+            rlayer = QgsRasterLayer(plugin_dir+'/pansharp.tif', "pansharp Image")
             QgsProject.instance().addMapLayer(rlayer)
 
-        self.dlg.pushButton_openfile.clicked.connect(select)
-        self.dlg.pushButton_run.clicked.connect(translate)
+
+        self.dlg.pushButton_run.clicked.connect(algo)
 
         self.dlg.pushButton_run.setStyleSheet("color: blue;font-size: 12pt; ") 
         self.dlg.pushButton_run.setToolTip('click')
 
         self.dlg.label_title.setStyleSheet("color: brown;font-size: 12pt; ") 
+        self.dlg.label_title_2.setStyleSheet("color: brown;font-size: 12pt; ") 
+        self.dlg.label_title_3.setStyleSheet("color: brown;font-size: 12pt; ") 
 
-
-        
-        # show the dialog
         self.dlg.show()
-        # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
             
             pass
+
+
+

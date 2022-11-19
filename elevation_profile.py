@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os     
 
-cwd = os.getcwd()
-
+cwd = "/home/bisag/.local/share/QGIS/QGIS3/profiles/default/python/plugins/multisource_onedestination"
 #remove elevation png image
 op1 = cwd+"/elevation_profile.png"
 

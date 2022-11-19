@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-#Converts raster data between different formats.
-
 
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
@@ -9,7 +7,7 @@ from qgis.PyQt.QtWidgets import QAction
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
-from .image_translate_dialog import ImageTranslateDialog
+from .wrap_reproject_dialog import WrapReprojectDialog
 import os.path
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QMenu, QAction,QFileDialog
@@ -19,7 +17,9 @@ from qgis.core import (
     QgsPathResolver
 )
 
-class ImageTranslate:
+from PyQt5.QtWidgets import QMenu, QAction,QFileDialog
+
+class WrapReproject:
     """QGIS Plugin Implementation."""
     filename = ''
     def __init__(self, iface):
@@ -33,7 +33,7 @@ class ImageTranslate:
         locale_path = os.path.join(
             self.plugin_dir,
             'i18n',
-            'ImageTranslate_{}.qm'.format(locale))
+            'WrapReproject_{}.qm'.format(locale))
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
@@ -42,7 +42,7 @@ class ImageTranslate:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&ImageTranslate')
+        self.menu = self.tr(u'&Resampling Image')
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -52,7 +52,7 @@ class ImageTranslate:
     def tr(self, message):
         
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('ImageTranslate', message)
+        return QCoreApplication.translate('WrapReproject', message)
 
 
     def add_action(
@@ -66,7 +66,7 @@ class ImageTranslate:
         status_tip=None,
         whats_this=None,
         parent=None):
-       
+        
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -105,14 +105,14 @@ class ImageTranslate:
             actions = self.iface.mainWindow().menuBar().actions()
             lastAction = actions[-1]
             self.iface.mainWindow().menuBar().insertMenu( lastAction, self.menu )
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"WrapReproject", self.iface.mainWindow())
+            self.action.setObjectName( 'WrapReproject' )
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
 
         else:
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"WrapReproject", self.iface.mainWindow())
+            self.action.setObjectName( 'WrapReproject' )
 
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
@@ -125,58 +125,77 @@ class ImageTranslate:
         #print("reload:\n",self.menu.actions(),'\n',menuBar)
         for action in self.menu.actions():
             #print(" inside",": ",action.objectName())
-            if action.objectName() == "ImageTranslate":
+            if action.objectName() == "WrapReproject":
                 print("remove :::","",action.objectName())
                 #icon.setEnabled(False)
                 self.menu.removeAction(action)
 
 
     def run(self):
-        
+    
         if self.first_start == True:
             self.first_start = False
-            self.dlg = ImageTranslateDialog()
+            self.dlg = WrapReprojectDialog()
 
         plugin_dir = os.path.dirname(__file__)
         self.dlg.label_logo.setPixmap(QtGui.QPixmap(plugin_dir+'/'+'bisag_n.png').scaledToWidth(120))
-
+                
         def select():
-            self.filename, _filter = QFileDialog.getOpenFileName(self.dlg, "Select   input file ","", '*.tif *.shp *.jp2')
+            self.filename, _filter = QFileDialog.getOpenFileName(self.dlg, "opent file ","", '*.tif *.shp *.jp2')
             self.dlg.label_title_selectfilename.setWordWrap(True)
             self.dlg.label_title_selectfilename.setText(self.filename)
+            
 
-        op = plugin_dir+'/Image_translate.tif'
+        self.dlg.pushButton_openFile.clicked.connect(select)
 
-        def translate():
-            print(self.filename)
-            processing.run("gdal:translate", 
-                                {'INPUT':self.filename,
-                                'TARGET_CRS':None,
-                                'NODATA':None,
-                                'COPY_SUBDATASETS':False,
-                                'OPTIONS':'',
-                                'EXTRA':'',
-                                'DATA_TYPE':0,
-                                'OUTPUT':op})
+        resampling_metod = [" Nearest neighbour","Bilinear","Cubic","Cubic spline","Lanczos windowed sinc","Average","Mode","Maximum","Minimum","Median","First quartile","Third quartile"]
+        alg_method  = self.dlg.comboBox.addItems(resampling_metod)
 
-            rlayer = QgsRasterLayer(op, "Image translate")
+
+        def reproject():
+            datatype = self.dlg.comboBox.currentIndex()
+
+            print("algo method",datatype)
+
+
+            resolution = self.dlg.lineEdit_esolution.text()
+
+            print(self.filename,"====        filename")
+            print(resolution)
+
+            op = plugin_dir+'/Resampling_image.tif'
+
+            if os.path.exists(op):
+                os.remove(op)
+                
+            processing.run("gdal:warpreproject", 
+                            {'INPUT':self.filename,
+                            'SOURCE_CRS':None,
+                            'TARGET_CRS':None,
+                            'RESAMPLING':0,
+                            'NODATA':None,
+                            'TARGET_RESOLUTION':resolution,
+                            'OPTIONS':'',
+                            'DATA_TYPE':datatype,
+                            'TARGET_EXTENT':None,
+                            'TARGET_EXTENT_CRS':None,
+                            'MULTITHREADING':False,
+                            'EXTRA':'',
+                            'OUTPUT':op})
+
+            rlayer = QgsRasterLayer(op, "Resampling Image")
             QgsProject.instance().addMapLayer(rlayer)
 
-        self.dlg.pushButton_openfile.clicked.connect(select)
-        self.dlg.pushButton_run.clicked.connect(translate)
-
-        self.dlg.pushButton_run.setStyleSheet("color: blue;font-size: 12pt; ") 
-        self.dlg.pushButton_run.setToolTip('click')
-
-        self.dlg.label_title.setStyleSheet("color: brown;font-size: 12pt; ") 
+        self.dlg.pushButton_reproject.clicked.connect(reproject)  
+        self.dlg.pushButton_reproject.setStyleSheet("color: blue;font-size: 12pt; ") 
 
 
-        
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
-            
+            # Do something useful here - delete the line containing pass and
+            # substitute with your code.
             pass

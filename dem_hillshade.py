@@ -1,58 +1,53 @@
 # -*- coding: utf-8 -*-
-#Converts raster data between different formats.
-
 
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
-# Initialize Qt resources from file resources.py
 from .resources import *
-# Import the code for the dialog
-from .image_translate_dialog import ImageTranslateDialog
+from .dem_hillshade_dialog import DemHillshadeDialog
 import os.path
-from PyQt5 import QtWidgets, QtGui
-from PyQt5.QtWidgets import QMenu, QAction,QFileDialog
-from qgis import processing
+from PyQt5 import QtGui
 from qgis.core import (
-    QgsProject,QgsCoordinateReferenceSystem,QgsRasterLayer,
-    QgsPathResolver
-)
+    QgsProject,QgsCoordinateReferenceSystem,
+    QgsPointXY,QgsPoint,QgsProcessingFeatureSourceDefinition ,QgsRasterLayer,QgsVectorFileWriter,
+    QgsMarkerSymbol,QgsCategorizedSymbolRenderer,QgsRendererCategory,QgsSymbol,
+    QgsVectorLayer, QgsVectorLayer, QgsFeature, QgsGeometry, QgsField )
+from PyQt5.QtWidgets import QMenu, QAction,QFileDialog
+from qgis.gui import  QgsMapToolEmitPoint
+import pandas as pd
+import re
+from PyQt5.QtCore import *
+from qgis import processing
 
-class ImageTranslate:
-    """QGIS Plugin Implementation."""
-    filename = ''
+class DemHillshade:
+    layer = ''
+
     def __init__(self, iface):
-       
-        # Save reference to the QGIS interface
+        
         self.iface = iface
-        # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
-        # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
             self.plugin_dir,
             'i18n',
-            'ImageTranslate_{}.qm'.format(locale))
+            'DemHillshade_{}.qm'.format(locale))
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
 
-        # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&ImageTranslate')
+        self.menu = self.tr(u'&Dem_Hillshade')
 
-        # Check if plugin was started the first time in current QGIS session
-        # Must be set in initGui() to survive plugin reloads
+       
         self.first_start = None
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('ImageTranslate', message)
+        return QCoreApplication.translate('DemHillshade', message)
 
 
     def add_action(
@@ -66,8 +61,7 @@ class ImageTranslate:
         status_tip=None,
         whats_this=None,
         parent=None):
-       
-
+        
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
         action.triggered.connect(callback)
@@ -105,14 +99,14 @@ class ImageTranslate:
             actions = self.iface.mainWindow().menuBar().actions()
             lastAction = actions[-1]
             self.iface.mainWindow().menuBar().insertMenu( lastAction, self.menu )
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"DemHillshade", self.iface.mainWindow())
+            self.action.setObjectName( 'DemHillshade' )
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
 
         else:
-            self.action = QAction(QIcon(icon_path),"ImageTranslate", self.iface.mainWindow())
-            self.action.setObjectName( 'ImageTranslate' )
+            self.action = QAction(QIcon(icon_path),"DemHillshade", self.iface.mainWindow())
+            self.action.setObjectName( 'DemHillshade' )
 
             self.action.triggered.connect(self.run)
             self.menu.addAction(self.action)
@@ -125,7 +119,7 @@ class ImageTranslate:
         #print("reload:\n",self.menu.actions(),'\n',menuBar)
         for action in self.menu.actions():
             #print(" inside",": ",action.objectName())
-            if action.objectName() == "ImageTranslate":
+            if action.objectName() == "DemHillshade":
                 print("remove :::","",action.objectName())
                 #icon.setEnabled(False)
                 self.menu.removeAction(action)
@@ -135,48 +129,37 @@ class ImageTranslate:
         
         if self.first_start == True:
             self.first_start = False
-            self.dlg = ImageTranslateDialog()
-
+            self.dlg = DemHillshadeDialog()
         plugin_dir = os.path.dirname(__file__)
-        self.dlg.label_logo.setPixmap(QtGui.QPixmap(plugin_dir+'/'+'bisag_n.png').scaledToWidth(120))
-
-        def select():
-            self.filename, _filter = QFileDialog.getOpenFileName(self.dlg, "Select   input file ","", '*.tif *.shp *.jp2')
-            self.dlg.label_title_selectfilename.setWordWrap(True)
-            self.dlg.label_title_selectfilename.setText(self.filename)
-
-        op = plugin_dir+'/Image_translate.tif'
-
-        def translate():
-            print(self.filename)
-            processing.run("gdal:translate", 
-                                {'INPUT':self.filename,
-                                'TARGET_CRS':None,
-                                'NODATA':None,
-                                'COPY_SUBDATASETS':False,
-                                'OPTIONS':'',
-                                'EXTRA':'',
-                                'DATA_TYPE':0,
-                                'OUTPUT':op})
-
-            rlayer = QgsRasterLayer(op, "Image translate")
-            QgsProject.instance().addMapLayer(rlayer)
-
-        self.dlg.pushButton_openfile.clicked.connect(select)
-        self.dlg.pushButton_run.clicked.connect(translate)
-
-        self.dlg.pushButton_run.setStyleSheet("color: blue;font-size: 12pt; ") 
-        self.dlg.pushButton_run.setToolTip('click')
-
-        self.dlg.label_title.setStyleSheet("color: brown;font-size: 12pt; ") 
-
-
-        
-        # show the dialog
-        self.dlg.show()
-        # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
+        self.dlg.label_logo.setPixmap(QtGui.QPixmap(plugin_dir+os.sep+'BISAG-N_MeitY.jpg').scaledToWidth(120))
             
-            pass
+        def select():
+            self.layer, _filter = QFileDialog.getOpenFileName(self.dlg, "Select raster file  ","", '*.jp2 *.tif')
+            rasterLayer = QgsRasterLayer(self.layer, 'raster data')
+            QgsProject.instance().addMapLayer(rasterLayer)
+            
+        self.dlg.pushButton_select.clicked.connect(select)   
+        
+        def hillshade():
+            Z_FACTOR = self.dlg.lineEdit.text()
+            AZIMUTH = self.dlg.lineEdit_2.text()
+            V_ANGLE = self.dlg.lineEdit_3.text()
+            
+            res = processing.run("native:hillshade", 
+                           {
+                            'INPUT':self.layer,
+                            'Z_FACTOR':Z_FACTOR,
+                            'AZIMUTH':AZIMUTH,
+                            'V_ANGLE':V_ANGLE,
+                            'OUTPUT':plugin_dir+f'{os.sep}hillshade.tif'})
+            
+            rasterLayer = QgsRasterLayer(res['OUTPUT'], 'hillshade')
+            
+            QgsProject.instance().addMapLayer(rasterLayer)
+            
+        self.dlg.pushButton.clicked.connect(hillshade)   
+        
+
+        self.dlg.show()
+        result = self.dlg.exec_()
+        
