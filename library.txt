@@ -1,0 +1,25 @@
+1.psycopg2 :for database connection
+
+2.shapefile(pyshp):reads and writes ESRI Shapefiles in pure Python
+
+3.opencv-python,
+
+4.numpy
+
+5.rasterio
+
+6.pyastar2d
+
+7. shapely
+
+8.geojson
+
+9. pyproj
+
+10. geopandas
+
+11. GDAL/OGR
+
+12. Matplotlib
+
+13. Fiona

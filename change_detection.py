@@ -95,40 +95,23 @@ class change_detection:
     def initGui(self):
 
         plugin_dir = os.path.dirname(__file__)
-        icon_path = plugin_dir+os.sep+'BISAG-N_MeitY.jpg'
-        
-        self.menu = self.iface.mainWindow().findChild( QMenu, '&Algorithm' )
+        icon_path = plugin_dir+'/det.jpeg'
 
-        if not self.menu:
-            self.menu = QMenu( '&Algorithm', self.iface.mainWindow().menuBar() )
-            self.menu.setObjectName( '&Algorithm' )
-            actions = self.iface.mainWindow().menuBar().actions()
-            lastAction = actions[-1]
-            self.iface.mainWindow().menuBar().insertMenu( lastAction, self.menu )
-            self.action = QAction(QIcon(icon_path),"change_detection", self.iface.mainWindow())
-            self.action.setObjectName( 'change_detection' )
-            self.action.triggered.connect(self.run)
-            self.menu.addAction(self.action)
+        self.add_action(
+            icon_path,
+            text=self.tr(u'save change detection images'),
+            callback=self.run,
+            parent=self.iface.mainWindow())
 
-        else:
-            self.action = QAction(QIcon(icon_path),"change_detection", self.iface.mainWindow())
-            self.action.setObjectName( 'change_detection' )
-
-            self.action.triggered.connect(self.run)
-            self.menu.addAction(self.action)
-       
         self.first_start = True
 
 
     def unload(self):
-        #menuBar = self.menu.parentWidget()
-        #print("reload:\n",self.menu.actions(),'\n',menuBar)
-        for action in self.menu.actions():
-            #print(" inside",": ",action.objectName())
-            if action.objectName() == "change_detection":
-                print("remove :::","",action.objectName())
-                #icon.setEnabled(False)
-                self.menu.removeAction(action)
+        for action in self.actions:
+            self.iface.removePluginMenu(
+                self.tr(u'&change_detection'),
+                action)
+            self.iface.removeToolBarIcon(action)
 
     def run(self):
         

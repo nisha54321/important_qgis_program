@@ -1,10 +1,12 @@
-import gdal,ogr
+from osgeo import gdal,ogr
 import struct
 import matplotlib.pyplot as plt
 import numpy as np
 import os     
 
-cwd = "/home/bisag/.local/share/QGIS/QGIS3/profiles/default/python/plugins/multisource_onedestination"
+# cwd = os.getcwd()
+cwd = "/home/bisag/Music/webMobility"
+
 #remove elevation png image
 op1 = cwd+"/elevation_profile.png"
 
